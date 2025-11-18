@@ -38,7 +38,7 @@ pub enum BackgroundColor {
 }
 
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Color(u8);
 
 impl From<(ForegroundColor, BackgroundColor)> for Color {
@@ -48,19 +48,13 @@ impl From<(ForegroundColor, BackgroundColor)> for Color {
 }
 
 impl Color {
-    const fn new(fg: ForegroundColor, bg: BackgroundColor) -> Self {
+    pub const fn new(fg: ForegroundColor, bg: BackgroundColor) -> Self {
         Color((bg as u8) << 3 | fg as u8)
     }
-    fn blink(self) -> Color {
-        Color(self.0 | 0b1000_0000)
-    }
-    fn no_blink(self) -> Color {
-        Color(self.0 & (!0b1000_0000))
-    }
-    fn set_foreground(&mut self, fg: ForegroundColor) {
+    pub fn set_foreground(&mut self, fg: ForegroundColor) {
         self.0 = (self.0 & 0b1111_0000) | fg as u8;
     }
-    fn set_background(&mut self, bg: BackgroundColor) {
+    pub fn set_background(&mut self, bg: BackgroundColor) {
         self.0 = (self.0 & 0b1000_1111) | (bg as u8) << 4;
     }
 }
@@ -76,14 +70,22 @@ const BUFFER_WIDTH: usize = 80;
 
 #[repr(transparent)]
 #[derive(Clone)]
-pub struct Buffer {
+struct Buffer {
     chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
 }
 
+impl core::fmt::Debug for Buffer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "VGA Text buffer")
+    }
+}
+
+#[derive(Debug)]
 pub struct ScreenWriter {
-    pub column_position: usize,
-    pub current_color: Color,
-    pub buffer: LazyCell<&'static mut Buffer>,
+    row_position: usize,
+    column_position: usize,
+    current_color: Color,
+    buffer: LazyCell<&'static mut Buffer>,
 }
 
 impl ScreenWriter {
@@ -95,16 +97,17 @@ impl ScreenWriter {
                     self.new_line();
                 }
 
-                let row = BUFFER_HEIGHT - 1;
-                let col = self.column_position;
-
-                self.buffer.chars[row][col].write(ScreenChar {
+                self.write_current_char(ScreenChar {
                     ascii: byte,
                     color: self.current_color,
                 });
                 self.column_position += 1;
             }
         }
+    }
+
+    fn write_current_char(&mut self, ch: ScreenChar) {
+        self.buffer.chars[self.row_position][self.column_position].write(ch);
     }
 
     pub fn set_color(&mut self, color: Color) {
@@ -119,22 +122,31 @@ impl ScreenWriter {
         self.current_color.set_background(bg);
     }
 
-    pub fn set_blink(&mut self) {
-        self.current_color = self.current_color.blink();
-    }
-
-    pub fn set_no_blink(&mut self) {
-        self.current_color = self.current_color.no_blink();
+    fn clear_screen(&mut self) {
+        self.row_position = 0;
+        self.column_position = 0;
+        for row in 0..BUFFER_HEIGHT {
+            for col in 0..BUFFER_WIDTH {
+                self.buffer.chars[row][col].write(ScreenChar {
+                    ascii: b' ',
+                    color: self.current_color,
+                });
+            }
+        }
     }
 
     fn new_line(&mut self) {
-        for row in 1..BUFFER_HEIGHT {
-            for col in 0..BUFFER_WIDTH {
-                let character = self.buffer.chars[row][col].read();
-                self.buffer.chars[row - 1][col].write(character);
+        self.row_position += 1;
+        if self.row_position == BUFFER_HEIGHT {
+            for row in 1..BUFFER_HEIGHT {
+                for col in 0..BUFFER_WIDTH {
+                    let character = self.buffer.chars[row][col].read();
+                    self.buffer.chars[row - 1][col].write(character);
+                }
             }
+            self.clear_row(BUFFER_HEIGHT - 1);
+            self.row_position = BUFFER_HEIGHT - 1;
         }
-        self.clear_row(BUFFER_HEIGHT - 1);
         self.column_position = 0;
     }
 
@@ -167,7 +179,27 @@ impl fmt::Write for ScreenWriter {
 }
 
 pub static VGA_WRITER: Mutex<ScreenWriter> = Mutex::new(ScreenWriter {
+    row_position: 0,
     column_position: 0,
     current_color: Color::new(ForegroundColor::White, BackgroundColor::Black),
     buffer: LazyCell::new(|| unsafe { &mut *(0xb8000 as *mut Buffer) }),
 });
+
+#[doc(hidden)]
+pub fn _print(args: fmt::Arguments) {
+    use core::fmt::Write;
+    VGA_WRITER.lock().write_fmt(args).unwrap();
+}
+
+#[macro_export]
+macro_rules! vga_print {
+    ( $($arg:tt),* ) => {
+        $crate::vga::_print(format_args!($($arg)*))
+    };
+}
+
+#[macro_export]
+macro_rules! vga_println {
+    () => (vga_print!("\n"));
+    ($($arg:tt),*) => (vga_print!($($arg)*));
+}

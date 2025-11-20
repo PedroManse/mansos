@@ -2,22 +2,24 @@
 #![no_main]
 
 use core::fmt::Write;
-use mansos::*;
-use volatile::Volatile;
+#[cfg(test)]
+use mansos::exit_qemu;
+use mansos::{vga, vga_print};
 
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
-    vga_print!("Hello");
-
-    loop {}
+    #[cfg(test)]
+    exit_qemu(mansos::QemuExitCode::Success);
+    #[cfg(not(test))]
+    main()
 }
 
-fn wait() -> usize {
-    let mut u = Volatile::new(0);
-    for y in 0..1_000_000 {
-        u.write(u.read() + y);
+fn main() -> ! {
+    let mut x = 0;
+    loop {
+        x+=1;
+        vga_print!("#{x}");
     }
-    u.read()
 }
 
 #[panic_handler]

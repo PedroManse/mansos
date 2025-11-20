@@ -48,6 +48,7 @@ impl From<(ForegroundColor, BackgroundColor)> for Color {
 }
 
 impl Color {
+    #[must_use]
     pub const fn new(fg: ForegroundColor, bg: BackgroundColor) -> Self {
         Color((bg as u8) << 3 | fg as u8)
     }
@@ -122,7 +123,7 @@ impl ScreenWriter {
         self.current_color.set_background(bg);
     }
 
-    fn clear_screen(&mut self) {
+    pub fn clear_screen(&mut self) {
         self.row_position = 0;
         self.column_position = 0;
         for row in 0..BUFFER_HEIGHT {
@@ -193,13 +194,11 @@ pub fn _print(args: fmt::Arguments) {
 
 #[macro_export]
 macro_rules! vga_print {
-    ( $($arg:tt),* ) => {
-        $crate::vga::_print(format_args!($($arg)*))
-    };
+    ($($arg:tt)*) => ($crate::vga::_print(format_args!($($arg)*)));
 }
 
 #[macro_export]
 macro_rules! vga_println {
-    () => (vga_print!("\n"));
-    ($($arg:tt),*) => (vga_print!($($arg)*));
+    () => ($crate::print!("\n"));
+    ($($arg:tt)*) => ($crate::vga_print!("{}\n", format_args!($($arg)*)));
 }

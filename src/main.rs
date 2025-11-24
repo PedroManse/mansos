@@ -4,7 +4,7 @@
 use core::fmt::Write;
 #[cfg(test)]
 use mansos::exit_qemu;
-use mansos::{vga, vga_print};
+use mansos::{serial, serial_println, vga, vga_println};
 
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
@@ -15,11 +15,8 @@ pub extern "C" fn _start() -> ! {
 }
 
 fn main() -> ! {
-    let mut x = 0;
-    loop {
-        x+=1;
-        vga_print!("#{x}");
-    }
+    serial_println!("Hello");
+    loop {}
 }
 
 #[panic_handler]

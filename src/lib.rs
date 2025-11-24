@@ -7,6 +7,7 @@
 use core::mem::transmute;
 use volatile::Volatile;
 
+pub mod serial;
 pub mod vga;
 #[cfg(test)]
 pub mod test;
@@ -24,7 +25,7 @@ pub fn wait() -> usize {
 #[repr(u32)]
 pub enum QemuExitCode {
     Success = 0x10,
-    Failed = 0x11,
+    Failure = 0x11,
 }
 
 pub fn exit_qemu(exit_code: QemuExitCode) -> ! {

@@ -1,16 +1,16 @@
 #![no_std]
 #![no_main]
 #![feature(custom_test_frameworks)]
-#![test_runner(crate::test::test_runner)]
+#![test_runner(tests::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
 use core::mem::transmute;
 use volatile::Volatile;
 
 pub mod serial;
+pub mod tests;
 pub mod vga;
-#[cfg(test)]
-pub mod test;
+pub use tests::test_runner;
 
 #[allow(clippy::must_use_candidate)]
 pub fn wait() -> usize {

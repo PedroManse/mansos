@@ -4,7 +4,7 @@
 use core::fmt::Write;
 #[cfg(test)]
 use mansos::exit_qemu;
-use mansos::{serial, serial_println, vga, vga_println};
+use mansos::{serial, serial_println, vga};
 
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
@@ -16,12 +16,16 @@ pub extern "C" fn _start() -> ! {
 
 fn main() -> ! {
     serial_println!("Hello");
+    #[allow(clippy::empty_loop)]
     loop {}
 }
 
 #[panic_handler]
-fn panic(info: &core::panic::PanicInfo) -> ! {
+pub fn panic(info: &core::panic::PanicInfo) -> ! {
     if let Some(mut w) = vga::VGA_WRITER.try_lock() {
+        let _ = write!(w, "{info:?}");
+    }
+    if let Some(mut w) = serial::SERIAL_CONN.try_lock() {
         let _ = write!(w, "{info:?}");
     }
     loop {}

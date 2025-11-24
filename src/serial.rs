@@ -12,7 +12,7 @@ pub static SERIAL_CONN: Mutex<LazyCell<SerialPort>> = Mutex::new(unsafe {
 });
 
 #[doc(hidden)]
-pub fn _print(args: ::core::fmt::Arguments) {
+pub fn print(args: ::core::fmt::Arguments) {
     use core::fmt::Write;
     SERIAL_CONN
         .lock()
@@ -22,7 +22,7 @@ pub fn _print(args: ::core::fmt::Arguments) {
 
 #[macro_export]
 macro_rules! serial_print {
-    ($($arg:tt)*) => ($crate::serial::_print(format_args!($($arg)*)));
+    ($($arg:tt)*) => ($crate::serial::print(format_args!($($arg)*)));
 }
 
 #[macro_export]

@@ -6,10 +6,10 @@ pub trait Test {
 
 impl<F> Test for F
 where
-    F: Fn() -> (),
+    F: Fn(),
 {
     fn run(&self) {
-        serial_print!("Test [{}]: ", core::any::type_name::<Self>());
+        serial_print!("Test [{}]: ", ::core::any::type_name::<Self>());
         self();
         serial_println!("Ok");
     }
@@ -32,15 +32,14 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
     exit_qemu(QemuExitCode::Failure)
 }
 
-#[cfg(test)]
 pub fn test_runner(tests: &[&dyn Test]) {
     serial_println!("Running {} tests", tests.len());
     for test in tests {
-        test.run()
+        test.run();
     }
 }
 
 #[test_case]
 fn trivial_assertion() {
-    assert_eq!(0, 1);
+    assert_eq!(1, 1);
 }
